@@ -1,0 +1,26 @@
+MARACANÃS — V16 — DEMONSTRAÇÃO GRATUITA
+
+Extraia e envie o CONTEÚDO desta pasta à raiz do repositório GitHub, substituindo os arquivos da V15. Não envie ZIP, node_modules, dist, data ou senhas.
+
+Render: New > Web Service > conecte o repositório > branch main.
+Root Directory: vazio (package.json está na raiz).
+Runtime: Node. Plano: Free.
+Build Command: npm ci --include=dev && npm run build
+Start Command: npm start
+Health Check Path: /api/health
+Em Advanced > Environment Variables:
+NODE_VERSION = 22.16.0
+NODE_ENV = production
+DEMO_MODE = true
+ER_AUTH_DB = /tmp/maracanas-demo/auth.sqlite
+DEMO_LOGIN = demonstracao
+DEMO_PASSWORD = escolha uma senha de 12 a 256 caracteres, exclusiva para esta demonstração.
+Não coloque essa senha no GitHub nem envie no chat.
+Render fornece RENDER_EXTERNAL_URL automaticamente. Não crie disco.
+Alternativa: New > Blueprint usa render.yaml gratuito e solicita DEMO_PASSWORD.
+Confira Free / $0 antes de criar. Caso a conta ainda peça cartão, não finalize: a verificação é da plataforma e não podemos garantir dispensa para todas as contas.
+Após Live, abra a URL e entre com login demonstracao e a senha definida no painel.
+Não precisa executar criar-admin: conta criada automaticamente na inicialização.
+
+LIMITES: servidor pode dormir após 15 minutos; próxima abertura pode demorar cerca de um minuto. Banco temporário perde usuários adicionais e sessões em reinícios/redeploys. A conta demonstracao é recriada usando a senha do painel. Se a senha for alterada dentro do aplicativo, reiniciar restaura a senha do painel. Para mudar definitivamente, altere DEMO_PASSWORD no Render.
+Funil e documentos continuam no navegador (IndexedDB), sem sincronização entre computadores. Não usar dados sensíveis ou documentos reais nesta demonstração. As cinco fontes adicionais continuam parciais; disponibilidade depende dos portais. Esta versão não implementa backup diário nem recuperação por e-mail.
