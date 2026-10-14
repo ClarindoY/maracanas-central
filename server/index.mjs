@@ -1,3 +1,4 @@
+import {openOperations} from './operations.mjs';
 import {setProgress} from './progress.mjs';
 import {setDefaultResultOrder} from 'node:dns';
 setDefaultResultOrder('ipv4first');
@@ -12,11 +13,11 @@ import {createServer} from 'node:http';
 import {remoteURL,fetchPNCP} from './pncp.mjs';
 import {openAuth,verifyPassword,hashPassword,token,permissions} from './auth.mjs';
 const hosting=hostingConfig();const auth=openAuth();await initializeDemo(auth);const dummy=await hashPassword(token());let active=0,authActive=0;
-const work=openWorkspace(auth);let summaryActive=false;
+const work=openWorkspace(auth);const operations=openOperations(work,auth);work.setHooks({observer:operations.notify,viewer:operations.view,guard:operations.guard});let summaryActive=false;
 const officialQueue=createOfficialQueue(work,async(user,id,docs)=>{if(summaryActive)throw Error('Outra análise está em andamento. Solicite novamente.');summaryActive=true;try{return await summarize(work,user,id,docs);}finally{summaryActive=false;}});
 if(process.env.BACKUP_ENABLED==='true'){try{makeBackup(auth,work.dir);}catch(e){console.error('Backup falhou: '+e.message);}setInterval(()=>{try{makeBackup(auth,work.dir);}catch(e){console.error('Backup falhou: '+e.message);}},3600000).unref();}
 const origins=hosting.origins;
-async function body(req){let data='';for await(const chunk of req){data+=chunk;if(Buffer.byteLength(data)>(req.url?.startsWith('/api/work/')?262144:16384))throw new Error('Corpo excede limite.');}return JSON.parse(data||'{}');}
+async function body(req){let data='';for await(const chunk of req){data+=chunk;if(Buffer.byteLength(data)>((req.url?.startsWith('/api/work/')||req.url?.startsWith('/api/operations/'))?262144:16384))throw new Error('Corpo excede limite.');}return JSON.parse(data||'{}');}
 export const server=createServer(async(req,res)=>{
  for(const [key,value] of Object.entries(securityHeaders(hosting.production)))res.setHeader(key,value);
  function reply(status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY'});res.end(JSON.stringify(data));}
@@ -42,22 +43,40 @@ export const server=createServer(async(req,res)=>{
  if(u.pathname==='/api/auth/me'&&req.method==='GET')return reply(200,session);
  if(u.pathname==='/api/auth/logout'&&req.method==='POST'){auth.logout(raw);auth.audit(session.user.id,'Logout concluído');work.event(session.user,'Logout concluído',null);res.setHeader('Set-Cookie',sessionCookie(hosting,''));return reply(200,{ok:true});}
  if(u.pathname==='/api/auth/password'&&req.method==='POST'){const b=await body(req);const user=auth.db.prepare('SELECT * FROM users WHERE id=?').get(session.user.id);if(!await verifyPassword(b.current,user.password))return reply(401,{error:'Senha atual inválida.'});const h=await hashPassword(b.next);auth.db.prepare('UPDATE users SET password=? WHERE id=?').run(h,user.id);auth.db.prepare('DELETE FROM sessions WHERE user_id=?').run(user.id);auth.audit(user.id,'Senha alterada e sessões encerradas');work.event(session.user,'Senha alterada',null);return reply(200,{ok:true});}
+ if(u.pathname.startsWith('/api/operations/')){
+ const op=u.pathname.slice('/api/operations/'.length);
+ if(op==='dashboard'&&req.method==='GET')return reply(200,operations.dashboard(session.user,Object.fromEntries(u.searchParams)));
+ if(op==='configuration'&&req.method==='GET')return reply(200,operations.configuration(session.user));
+ if(op==='configuration'&&req.method==='POST')return reply(200,operations.configure(session.user,await body(req)));
+ if(op==='notifications'&&req.method==='GET')return reply(200,operations.notifications(session.user));
+ const notification=op.match(/^notifications\/(\d+)$/);if(notification&&req.method==='POST')return reply(200,operations.seen(session.user,Number(notification[1])));
+ const restricted=op.match(/^processes\/([^/]+)\/documents\/([^/]+)$/);if(restricted&&req.method==='POST'){const b=await body(req);return reply(200,operations.restrictDocument(session.user,decodeURIComponent(restricted[1]),decodeURIComponent(restricted[2]),b.restricted));}
+ const m=op.match(/^processes\/([^/]+)(?:\/(deliveries|budget-view)(?:\/([^/]+))?)?$/);if(!m)return reply(404,{error:'Rota operacional não encontrada.'});const id=decodeURIComponent(m[1]);
+ if(!m[2]&&req.method==='GET')return reply(200,operations.detail(session.user,id));
+ if(!m[2]&&req.method==='PATCH')return reply(200,operations.saveMeta(session.user,id,await body(req)));
+ if(m[2]==='deliveries'&&req.method==='POST')return reply(200,operations.taskSave(session.user,id,await body(req),m[3]));
+ if(m[2]==='budget-view'&&req.method==='POST')return reply(200,operations.budgetView(session.user,id));
+ return reply(405,{error:'Método não permitido.'});
+ }
  if(u.pathname.startsWith('/api/work/')){
+ if(u.pathname==='/api/work/team'&&req.method==='GET')return reply(200,operations.configuration(session.user).team);
+ if(u.pathname==='/api/work/tenders'&&req.method==='GET')return reply(200,work.list().map(t=>operations.view(session.user,t)));
+ const publicDetail=u.pathname.match(/^\/api\/work\/tenders\/([^/]+)$/);if(publicDetail&&req.method==='GET')return reply(200,work.detail(session.user,decodeURIComponent(publicDetail[1])));
  if(!session.user.admin&&!session.user.permissoes.some(p=>['Buscar editais','Analisar editais','Registrar decisões','Montar propostas','Acessar documentos'].includes(p)))return reply(403,{error:'Nenhuma permissão de trabalho foi atribuída à sua conta.'});
- if(u.pathname==='/api/work/team'&&req.method==='GET')return reply(200,auth.users().filter(x=>x.ativo).map(x=>({id:x.id,nome:x.nome})));
- if(u.pathname==='/api/work/tenders'&&req.method==='GET')return reply(200,work.list());
- if(u.pathname==='/api/work/tenders'&&req.method==='POST')return reply(201,work.create(session.user,await body(req)));
+ if(u.pathname==='/api/work/team'&&req.method==='GET')return reply(200,operations.configuration(session.user).team);
+ if(u.pathname==='/api/work/tenders'&&req.method==='GET')return reply(200,work.list().map(t=>operations.view(session.user,t)));
+ if(u.pathname==='/api/work/tenders'&&req.method==='POST')return reply(201,operations.view(session.user,work.create(session.user,await body(req))));
  if(u.pathname==='/api/work/audit'&&req.method==='GET'){if(!session.user.admin)return reply(403,{error:'Auditoria exclusiva da administração.'});const actor=u.searchParams.get('actor')||'';const page=Math.max(1,Math.min(10000,Number(u.searchParams.get('page'))||1));return reply(200,work.db.prepare('SELECT * FROM activity WHERE (?=\'\' OR actor=?) ORDER BY id DESC LIMIT 100 OFFSET ?').all(actor,actor,(page-1)*100));}
  const m=u.pathname.match(/^\/api\/work\/tenders\/([^/]+)(?:\/(documents|comments|summary|official-analysis)(?:\/([^/]+))?)?$/);if(!m)return reply(404,{error:'Rota não encontrada.'});const id=decodeURIComponent(m[1]);
  if(!m[2]&&req.method==='GET')return reply(200,work.detail(session.user,id));
- if(!m[2]&&req.method==='PATCH')return reply(200,work.patch(session.user,id,await body(req)));
+ if(!m[2]&&req.method==='PATCH')return reply(200,operations.view(session.user,work.patch(session.user,id,await body(req))));
  if(m[2]==='official-analysis'&&req.method==='GET'){const job=officialQueue.status(id);return reply(200,job?{...job,progress:work.get(id).analysisProgress||null}:null);}
  if(m[2]==='official-analysis'&&req.method==='POST')return reply(202,officialQueue.start(session.user,id));
  if(m[2]==='comments'&&req.method==='POST'){const b=await body(req);work.comment(session.user,id,b.text);return reply(200,work.detail(session.user,id));}
  if(m[2]==='documents'&&!m[3]&&req.method==='POST'){if(!allowed(session.user,'Acessar documentos'))return reply(403,{error:'Sem permissão para documentos.'});let size=0;const chunks=[];for await(const c of req){size+=c.length;if(size>20*1024*1024)fail(413,'Limite: 20 MB por PDF.');chunks.push(c);}let name;try{name=decodeURIComponent(req.headers['x-file-name']||'');}catch{fail(400,'Nome inválido.');}return reply(201,work.upload(session.user,id,name,Buffer.concat(chunks)));}
- if(m[2]==='documents'&&m[3]&&req.method==='GET'){const d=work.document(session.user,id,m[3]);res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(d.metadata.name),'Content-Length':d.bytes.length,'Cache-Control':'no-store'});return res.end(d.bytes);}
+ if(m[2]==='documents'&&m[3]&&req.method==='GET'){if(!operations.documentAllowed(session.user,m[3]))return reply(403,{error:'Documento restrito à coordenação e gerência.'});const d=work.document(session.user,id,m[3]);res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(d.metadata.name),'Content-Length':d.bytes.length,'Cache-Control':'no-store'});return res.end(d.bytes);}
  if(m[2]==='summary'&&req.method==='GET')return reply(200,{progress:work.get(id).analysisProgress||null});
- if(m[2]==='summary'&&req.method==='POST'){if(!allowed(session.user,'Analisar editais')||!allowed(session.user,'Acessar documentos'))return reply(403,{error:'Sem permissão para resumir documentos.'});if(summaryActive)return reply(429,{error:'Outra análise está em andamento.'});const b=await body(req);summaryActive=true;try{return reply(200,await summarize(work,session.user,id,b.documentIds));}catch(e){setProgress(work,id,{status:'falhou'});throw e;}finally{summaryActive=false;}}
+ if(m[2]==='summary'&&req.method==='POST'){if(!allowed(session.user,'Analisar editais')||!allowed(session.user,'Acessar documentos'))return reply(403,{error:'Sem permissão para resumir documentos.'});if(summaryActive)return reply(429,{error:'Outra análise está em andamento.'});const b=await body(req);if(Array.isArray(b.documentIds)&&b.documentIds.some(d=>!operations.documentAllowed(session.user,d)))return reply(403,{error:'Documento restrito ao perfil.'});summaryActive=true;try{return reply(200,await summarize(work,session.user,id,b.documentIds));}catch(e){setProgress(work,id,{status:'falhou'});throw e;}finally{summaryActive=false;}}
  return reply(405,{error:'Método não permitido.'});
  }
  if(u.pathname.startsWith('/api/admin/')){
