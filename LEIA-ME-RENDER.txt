@@ -1,26 +1,62 @@
-MARACANÃS — V16 — DEMONSTRAÇÃO GRATUITA
+MARACANÃS V27 — GEMINI, LEITURA DE PDF E OCR AUTOMÁTICO
 
-Extraia e envie o CONTEÚDO desta pasta à raiz do repositório GitHub, substituindo os arquivos da V15. Não envie ZIP, node_modules, dist, data ou senhas.
+ATUALIZAR O SERVIÇO EXISTENTE
+Esta versão usa Gemini exclusivamente. As variáveis antigas OPENAI_API_KEY e OPENAI_MODEL não são consultadas; não há troca automática para outra IA nem cobrança pela OpenAI.
+1. Extraia o ZIP. Envie o CONTEÚDO da pasta Central_V27_Render para a mesma raiz do projeto no GitHub, substituindo os arquivos correspondentes. package.json, package-lock.json, render.yaml, src, server e shared precisam ser atualizados juntos. Não basta trocar App.jsx.
+2. Use o mesmo repositório, serviço Render e disco persistente /var/data. Não crie outro Blueprint para esta atualização. Não envie node_modules, dist, data, bancos, .env ou chaves.
+3. Mantenha o build: npm ci --include=dev && npm run build
+   Mantenha o start: npm start
+   Root Directory: pasta que contém package.json.
+4. Após o commit, aguarde o deploy automático, caso esteja habilitado; caso contrário, faça deploy do commit mais recente no serviço existente.
+5. Entre com a mesma conta. Abra a licitação que apresentou erro e clique em "Atualizar documentos e gerar análise oficial". O erro anterior não é reprocessado sozinho.
+6. Confira o relatório "Conferir páginas e métodos de leitura" e os oito blocos do resumo.
 
-Render: New > Web Service > conecte o repositório > branch main.
-Root Directory: vazio (package.json está na raiz).
-Runtime: Node. Plano: Free.
-Build Command: npm ci --include=dev && npm run build
-Start Command: npm start
-Health Check Path: /api/health
-Em Advanced > Environment Variables:
+VARIÁVEIS DO SERVIDOR
 NODE_VERSION = 22.16.0
 NODE_ENV = production
-DEMO_MODE = true
-ER_AUTH_DB = /tmp/maracanas-demo/auth.sqlite
-DEMO_LOGIN = demonstracao
-DEMO_PASSWORD = escolha uma senha de 12 a 256 caracteres, exclusiva para esta demonstração.
-Não coloque essa senha no GitHub nem envie no chat.
-Render fornece RENDER_EXTERNAL_URL automaticamente. Não crie disco.
-Alternativa: New > Blueprint usa render.yaml gratuito e solicita DEMO_PASSWORD.
-Confira Free / $0 antes de criar. Caso a conta ainda peça cartão, não finalize: a verificação é da plataforma e não podemos garantir dispensa para todas as contas.
-Após Live, abra a URL e entre com login demonstracao e a senha definida no painel.
-Não precisa executar criar-admin: conta criada automaticamente na inicialização.
+DEMO_MODE = false
+ER_AUTH_DB = /var/data/auth.sqlite
+BACKUP_ENABLED = true
+MAX_DOCUMENT_BYTES = 67108864
+AI_MONTHLY_LIMIT = 100
+GEMINI_MODEL = gemini-3.5-flash-lite
+GEMINI_API_KEY = sua chave privada, exclusivamente no painel Environment
+O Render injeta RENDER_EXTERNAL_URL; para domínio próprio, configure APP_ORIGIN com a origem HTTPS.
+Esta atualização não exige outra chave para OCR. O modelo português é instalado via npm e utilizado localmente no servidor, sem CDN durante a leitura. O resumo por IA continua exigindo GEMINI_API_KEY e acesso/cota do modelo na API. O gratuito tem cotas por modelo/projeto; não é ilimitado. Uma conta com faturamento ativo pode gerar cobrança conforme o uso.
 
-LIMITES: servidor pode dormir após 15 minutos; próxima abertura pode demorar cerca de um minuto. Banco temporário perde usuários adicionais e sessões em reinícios/redeploys. A conta demonstracao é recriada usando a senha do painel. Se a senha for alterada dentro do aplicativo, reiniciar restaura a senha do painel. Para mudar definitivamente, altere DEMO_PASSWORD no Render.
-Funil e documentos continuam no navegador (IndexedDB), sem sincronização entre computadores. Não usar dados sensíveis ou documentos reais nesta demonstração. As cinco fontes adicionais continuam parciais; disponibilidade depende dos portais. Esta versão não implementa backup diário nem recuperação por e-mail.
+O QUE FOI CORRIGIDO
+- Migração dos resumos e da fila PNCP para Gemini. Informe GEMINI_API_KEY no Render e GEMINI_MODEL = gemini-3.5-flash-lite. Chave não incluída no ZIP.
+- JSON estruturado, validação de valores/trechos/páginas e preservação de resumo anterior em caso de falha.
+- Intervalo mínimo de 15 segundos entre chamadas, até duas repetições para falhas temporárias e avisos claros de cota, chave e modelo. As cotas reais devem ser conferidas no Google AI Studio.
+- Barra de progresso com etapa atual, arquivos baixados, páginas lidas/OCR, blocos concluídos e tempo decorrido. O percentual é da etapa atual, não uma previsão de tempo restante. Durante preparação/consolidação sem quantidade conhecida, a barra é indeterminada. Atualização automática pela ficha.
+- Resolvido o bloqueio de conjuntos acima de 240 mil caracteres: processamento automático em partes e consolidação com referências originais.
+- Página renderizada inteiramente branca não interrompe o resumo.
+- Páginas sem texto suficiente e páginas com pouco texto e imagens passam por OCR.
+- Leitura nativa, OCR, página branca e página pendente são identificados por documento e página.
+- Páginas ilegíveis continuam pendentes. Havendo outras páginas legíveis, gera-se um resumo explicitamente parcial; não se conclui que uma exigência está ausente no edital completo.
+- Se nenhuma página puder ser lida, não há resumo novo; relatório da tentativa é salvo e o resumo anterior é preservado e identificado.
+- OCR de baixa confiança não vira informação preenchida. Texto reconhecido ainda exige conferência, especialmente números e tabelas; confiança OCR não comprova exatidão.
+- A recomendação "Recomendada" fica bloqueada enquanto houver páginas pendentes. Parecer condicionado continua disponível.
+- Falhas nos detalhes da busca aparecem com motivo e botão para repetir somente os resultados com falha.
+- Filtros continuam dentro de "Mostrar todos os filtros". São filtros do acervo carregado; campos sem dados disponíveis permanecem indisponíveis, sem dados inventados.
+
+LIMITES E REVISÃO
+Até 12 PDFs por análise, 20 MB e 600 páginas por PDF. O conjunto é dividido automaticamente em partes de até 48 mil caracteres de texto, sem exigir separar PDFs. Há um limite de segurança de 5 milhões de caracteres no conjunto.
+Até 20 páginas processadas por OCR em uma análise. Limite por página: 90 segundos. Limites atingidos aparecem como pendências; selecione menos documentos e repita ou confira/preencha os campos manualmente.
+O sistema processa uma análise de cada vez no servidor. OCR e sete blocos de resumo por parte podem levar vários minutos; a ficha PNCP mostra parte, bloco e quantidade de etapas concluídas. Na análise automática PNCP, fechar a ficha não interrompe o trabalho.
+PDF criptografado, corrompido, imagem muito ruim, tabelas complexas e imagem misturada com texto abundante podem requerer revisão manual. Leitura concluída significa páginas processadas, não garantia de extração integral de cada elemento visual.
+São sete chamadas de IA por parte, com transmissão apenas daquela parte. Documentos maiores usam mais chamadas e têm custo proporcionalmente maior na API. O limite mensal conta análises, não chamadas individuais. Os achados são validados antes da consolidação; repetições exatas são removidas, valores diferentes são preservados e não se escolhe automaticamente qual retificação prevalece. Sete blocos extraem os dados documentais; dados da empresa, cotações, disponibilidade e parecer estratégico dependem da equipe. Cada chamada recebe apenas os trechos da parte em processamento. No nível gratuito, conteúdo pode ser usado pelo Google para melhorar produtos. Teste com editais públicos. Antes de enviar documentos particulares/confidenciais, confira o plano e as condições de tratamento de dados. Não há garantia de retenção zero.
+Os campos precisam de trecho literal, documento e página. Números sem suporte são descartados. Essa validação não garante interpretação correta; confira o original.
+O PNCP fornece situação, dados e documentos publicados. Pendências na coleta são exibidas. Não se promete encontrar editais de todas as 17 fontes; as integrações e limitações existentes são preservadas.
+
+DADOS E CONTAS
+Contas, licitações, PDFs, complementos, comentários, relatórios de leitura e auditoria ficam no servidor, no disco persistente. Não se usa localStorage, sessionStorage ou IndexedDB. A sessão usa cookie HttpOnly.
+Preservar /var/data/auth.sqlite e o mesmo disco mantém as contas e os registros já existentes. Não execute criar-admin para recriar uma conta que já funciona.
+Para uma instalação nova, execute npm run criar-admin no Shell do serviço. Não há senha padrão. Senha mínima: 12 caracteres. Funcionários são criados em Administração, com permissões explícitas.
+Conflitos de edição retornam erro 409: recarregue a ficha antes de salvar novamente. A auditoria registra o autor das ações no sistema e alterações com antes/depois, não atividades fora do site.
+Backups diários locais incluem banco e PDFs; os dez últimos são mantidos no mesmo disco. Uma cópia no mesmo disco não substitui backup externo.
+
+VALIDAÇÃO DESTA VERSÃO
+npm test: inclui leitura real de PDF com texto, página branca e OCR português offline, pendências, limite/timeout, resumo parcial com API simulada, permissões, divisão sem perda de texto, PDF real acima de 240 mil caracteres e preservação de resumo anterior após falha em uma parte posterior.
+npm run build: valida o frontend para produção.
+Não houve chamada real ao Google Gemini nem deploy na conta Render nesta validação. Depois de publicar, reprocessar um edital real confirma chave, cota, conectividade e consumo de memória do seu serviço.

@@ -1,21 +1,30 @@
 services:
   - type: web
-    name: maracanas-central-demo
+    name: maracanas-central
     runtime: node
-    plan: free
+    plan: starter
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
+    numInstances: 1
+    disk:
+      name: maracanas-dados
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 22.16.0
       - key: NODE_ENV
         value: production
       - key: DEMO_MODE
-        value: "true"
+        value: "false"
       - key: ER_AUTH_DB
-        value: /tmp/maracanas-demo/auth.sqlite
-      - key: DEMO_LOGIN
-        value: demonstracao
-      - key: DEMO_PASSWORD
-        sync: false
+        value: /var/data/auth.sqlite
+      - key: BACKUP_ENABLED
+        value: "true"
+      - key: MAX_DOCUMENT_BYTES
+        value: "67108864"
+      - key: AI_MONTHLY_LIMIT
+        value: "100"
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
