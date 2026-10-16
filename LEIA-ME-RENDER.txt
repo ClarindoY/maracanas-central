@@ -1,23 +1,8 @@
-MARACANÃS V28 — DASHBOARD OPERACIONAL, ENTREGAS E AUDITORIA
-
-
-NOVO DASHBOARD — CONFIGURAÇÃO APÓS O DEPLOY
-1. Entre como administrador e abra Administração. Na configuração operacional, selecione as contas reais de Paulo (coordenador do setor) e Hellen (coordenadora geral). Defina os demais papéis e mantenha as permissões de módulos conforme cada colaborador. Nenhuma conta é criada automaticamente.
-2. Na ficha de cada licitação, use o fluxo operacional para registrar empresa, contrato, decisões e etapas. Cadastre entregas com setor, responsável e prazo com horário. Informações antigas sem empresa, setor ou horário permanecem sem definição até conferência.
-3. Abrir Orçamento registra visualização. Concluir o orçamento exige selecionar uma entrega de Orçamento concluída com evidência. Preparação para disputa exige aprovação e validações documental, financeira e de estratégia.
-4. Cada colaborador pode atualizar suas entregas. Coordenação e gerência podem distribuir e revisar tarefas. Conclusão exige evidência; mudança de prazo exige justificativa e conserva o prazo original no histórico. Bloqueios exigem motivo, responsável pela resolução e próxima cobrança.
-5. Hellen recebe notificações DENTRO DO SISTEMA sobre novas movimentações operacionais após a configuração. Esta versão não envia email ou WhatsApp.
-6. O dashboard é inicial para toda a equipe, com 11 cards clicáveis, filtros, entregas, prioridades, setores e movimentações. Atualiza a cada 15 segundos e após ações; não exige preencher números separadamente.
-7. O período inclui processos criados, atualizados ou com eventos/prazos no intervalo; encontrados contam a criação e resultados contam a confirmação. Datas seguem o horário de Fortaleza.
-8. Custos e margens ficam limitados aos papéis autorizados. Marque explicitamente os PDFs restritos na ficha; a restrição é verificada também no download. As demais permissões de documentos continuam valendo.
-9. Os registros continuam no servidor e disco persistente do serviço. Não há uso de localStorage para guardar dados do sistema. Preserve o disco e as variáveis atuais.
-
-VALIDAÇÃO V28
-39 testes automatizados aprovados, incluindo API, autorização, entregas, prazos, histórico, notificações, privacidade financeira e compatibilidade com pendências antigas. Build de produção aprovado. Não foi executada inspeção visual em navegador neste ambiente nem teste com chave Gemini real.
+MARACANÃS V27 — GEMINI, LEITURA DE PDF E OCR AUTOMÁTICO
 
 ATUALIZAR O SERVIÇO EXISTENTE
 Esta versão usa Gemini exclusivamente. As variáveis antigas OPENAI_API_KEY e OPENAI_MODEL não são consultadas; não há troca automática para outra IA nem cobrança pela OpenAI.
-1. Extraia o ZIP. Envie o CONTEÚDO da pasta Central_V28_Render para a mesma raiz do projeto no GitHub, substituindo os arquivos correspondentes. package.json, package-lock.json, render.yaml, src, server e shared precisam ser atualizados juntos. Não basta trocar App.jsx.
+1. Extraia o ZIP. Envie o CONTEÚDO da pasta Central_V27_Render para a mesma raiz do projeto no GitHub, substituindo os arquivos correspondentes. package.json, package-lock.json, render.yaml, src, server e shared precisam ser atualizados juntos. Não basta trocar App.jsx.
 2. Use o mesmo repositório, serviço Render e disco persistente /var/data. Não crie outro Blueprint para esta atualização. Não envie node_modules, dist, data, bancos, .env ou chaves.
 3. Mantenha o build: npm ci --include=dev && npm run build
    Mantenha o start: npm start
